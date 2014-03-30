@@ -117,6 +117,10 @@ const QEMULogItem qemu_log_items[] = {
     { LOG_GUEST_ERROR, "guest_errors",
       "log when the guest OS does something invalid (eg accessing a\n"
       "non-existent register)" },
+    { CPU_LOG_CP_SECURE, "cp15_secure",
+      "arm only: show all cp15 reads/writes by secure world" },
+    { CPU_LOG_CP_NORMAL, "cp15_normal",
+      "arm only: show all cp15 reads/writes by normal world" },
     { 0, NULL, NULL },
 };
 

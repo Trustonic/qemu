@@ -63,6 +63,8 @@ typedef struct DisasContext {
     int thumb;
 #if !defined(CONFIG_USER_ONLY)
     int user;
+    int secure;    /* Security state of the processor core */
+    int secure_cp; /* Target CP15 register bank */
 #endif
     int vfp_enabled;
     int vec_len;
@@ -73,8 +75,12 @@ static uint32_t gen_opc_condexec_bits[OPC_BUF_SIZE];
 
 #if defined(CONFIG_USER_ONLY)
 #define IS_USER(s) 1
+#define IS_SECURE(s) 1
+#define IS_SECURE_CP(s) 1
 #else
 #define IS_USER(s) (s->user)
+#define IS_SECURE(s) (s->secure)
+#define IS_SECURE_CP(s) (s->secure_cp)
 #endif
 
 /* These instructions trap after executing, so defer them until after the
@@ -6355,6 +6361,23 @@ static int disas_cp14_write(CPUARMState * env, DisasContext *s, uint32_t insn)
     return 1;
 }
 
+static void log_cp_read64(DisasContext *s, const ARMCPRegInfo *ri, TCGv_i64 value)
+{
+}
+
+static void log_cp_write64(DisasContext *s, const ARMCPRegInfo *ri, TCGv_i64 value)
+{
+}
+
+static void log_cp_read32(DisasContext *s, const ARMCPRegInfo *ri, TCGv_i32 value)
+{
+}
+
+static void log_cp_write32(DisasContext *s, const ARMCPRegInfo *ri, TCGv_i32 value)
+{
+}
+
+
 static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
 {
     int cpnum;
@@ -9736,6 +9759,8 @@ static inline void gen_intermediate_code_internal(CPUARMState *env,
     dc->condexec_cond = ARM_TBFLAG_CONDEXEC(tb->flags) >> 4;
 #if !defined(CONFIG_USER_ONLY)
     dc->user = (ARM_TBFLAG_PRIV(tb->flags) == 0);
+    dc->secure = (ARM_TBFLAG_SECURE(tb->flags) != 0);
+    dc->secure_cp = (ARM_TBFLAG_SECURE_CP(tb->flags) != 0);
 #endif
     dc->vfp_enabled = ARM_TBFLAG_VFPEN(tb->flags);
     dc->vec_len = ARM_TBFLAG_VECLEN(tb->flags);

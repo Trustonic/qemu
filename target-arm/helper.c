@@ -560,6 +560,23 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
     env->uncached_cpsr = (env->uncached_cpsr & ~mask) | (val & mask);
 }
 
+void HELPER(log_cp_write64)(CPUARMState *env, void *rip, uint64_t value)
+{
+}
+
+void HELPER(log_cp_read64)(CPUARMState *env, void *rip, uint64_t value)
+{
+}
+
+void HELPER(log_cp_write32)(CPUARMState *env, void *rip, uint32_t value)
+{
+}
+
+void HELPER(log_cp_read32)(CPUARMState *env, void *rip, uint32_t value)
+{
+}
+
+
 /* Sign/zero extend */
 uint32_t HELPER(sxtb16)(uint32_t x)
 {
@@ -700,7 +717,7 @@ static inline int bank_number (CPUARMState *env, int mode)
         return 4;
     case ARM_CPU_MODE_FIQ:
         return 5;
-    case ARM_CPU_MODE_SMC:
+    case ARM_CPU_MODE_MON:
         return 6;
     }
     cpu_abort(env, "Bad mode %x\n", mode);
@@ -956,11 +973,11 @@ void do_interrupt(CPUARMState *env)
             cpu_abort(env, "SMC handling under semihosting not implemented\n");
             return;
         }
-        if ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_SMC) {
-            env->cp15.c1_secfg &= ~1;
+        if ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_MON) {
+            env->cp15.c1_scr &= ~1;
         }
         offset = env->thumb ? 2 : 0;
-        new_mode = ARM_CPU_MODE_SMC;
+        new_mode = ARM_CPU_MODE_MON;
         addr = 0x08;
         mask = CPSR_A | CPSR_I | CPSR_F;
         break;
@@ -969,8 +986,8 @@ void do_interrupt(CPUARMState *env)
         return; /* Never happens.  Keep compiler happy.  */
     }
     if (arm_feature(env, ARM_FEATURE_TRUSTZONE)) {
-        if (new_mode == ARM_CPU_MODE_SMC ||
-            (env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_SMC) {
+        if (new_mode == ARM_CPU_MODE_MON ||
+            (env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_MON) {
             addr += env->cp15.c12_mvbar;
         } else {
             if (env->cp15.c1_sys & (1 << 13)) {
@@ -1499,17 +1516,17 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
                 goto bad_reg;
             switch (op2) {
             case 0: /* Secure configuration register. */
-                if (env->cp15.c1_secfg & 1)
+                if (env->cp15.c1_scr & 1)
                     goto bad_reg;
-                env->cp15.c1_secfg = val;
+                env->cp15.c1_scr = val;
                 break;
             case 1: /* Secure debug enable register. */
-                if (env->cp15.c1_secfg & 1)
+                if (env->cp15.c1_scr & 1)
                     goto bad_reg;
-                env->cp15.c1_sedbg = val;
+                env->cp15.c1_scr = val;
                 break;
             case 2: /* Nonsecure access control register. */
-                if (env->cp15.c1_secfg & 1)
+                if (env->cp15.c1_scr & 1)
                     goto bad_reg;
                 env->cp15.c1_nseac = val;
                 break;
@@ -1806,7 +1823,7 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
                 if (!arm_feature(env, ARM_FEATURE_TRUSTZONE)) {
                     goto bad_reg;
                 }
-                if (!(env->cp15.c1_secfg & 1)) {
+                if (!(env->cp15.c1_scr & 1)) {
                     env->cp15.c12_mvbar = val & ~0x1f;
                 }
                 break;
@@ -2019,11 +2036,11 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
                 goto bad_reg;
             switch (op2) {
             case 0: /* Secure configuration register. */
-                if (env->cp15.c1_secfg & 1)
+                if (env->cp15.c1_scr & 1)
                     goto bad_reg;
-                return env->cp15.c1_secfg;
+                return env->cp15.c1_scr;
             case 1: /* Secure debug enable register. */
-                if (env->cp15.c1_secfg & 1)
+                if (env->cp15.c1_scr & 1)
                     goto bad_reg;
                 return env->cp15.c1_sedbg;
             case 2: /* Nonsecure access control register. */

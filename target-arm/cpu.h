@@ -148,7 +148,7 @@ typedef struct CPUARMState {
         uint32_t c1_sys; /* System control register.  */
         uint32_t c1_coproc; /* Coprocessor access register.  */
         uint32_t c1_xscaleauxcr; /* XScale auxiliary control register.  */
-        uint32_t c1_secfg; /* Secure configuration register. */
+        uint32_t c1_scr; /* Secure configuration register. */
         uint32_t c1_sedbg; /* Secure debug enable register. */
         uint32_t c1_nseac; /* Non-secure access control register. */
         uint32_t c2_base0; /* MMU translation table base 0.  */
@@ -389,7 +389,9 @@ enum arm_cpu_mode {
   ARM_CPU_MODE_FIQ = 0x11,
   ARM_CPU_MODE_IRQ = 0x12,
   ARM_CPU_MODE_SVC = 0x13,
-  ARM_CPU_MODE_SMC = 0x16,
+  /* NOTE: TrustZone: Changed name of Secure Monitor Mode
+   * to "ARM_CPU_MODE_MON" for better clarity. */
+  ARM_CPU_MODE_MON = 0x16,
   ARM_CPU_MODE_ABT = 0x17,
   ARM_CPU_MODE_UND = 0x1b,
   ARM_CPU_MODE_SYS = 0x1f
@@ -570,6 +572,15 @@ static inline bool cptype_valid(int cptype)
 #define PL1_RW (PL1_R | PL1_W)
 #define PL0_RW (PL0_R | PL0_W)
 
+/* Secure configuration register (SCR) */
+#define SCR_NS  (1 << 0)
+#define SCR_IRQ (1 << 1)
+#define SCR_FIQ (1 << 2)
+#define SCR_EA  (1 << 3)
+#define SCR_FW  (1 << 4)
+#define SCR_AW  (1 << 5)
+#define SCR_nET (1 << 6)
+
 static inline int arm_current_pl(CPUARMState *env)
 {
     if ((env->uncached_cpsr & 0x1f) == ARM_CPU_MODE_USR) {
@@ -579,6 +590,14 @@ static inline int arm_current_pl(CPUARMState *env)
      * extensions, so PL2 and PL3 don't exist for us.
      */
     return 1;
+}
+
+static inline int arm_current_secure(CPUARMState *env)
+{
+    uint32_t uncached_mode = (env->uncached_cpsr & 0x1f);
+
+    /* PL3 (secure privileged) or PL0 (user) and SCR.NS==0 */
+    return (uncached_mode == ARM_CPU_MODE_MON) || !(env->cp15.c1_scr & SCR_NS);
 }
 
 typedef struct ARMCPRegInfo ARMCPRegInfo;
@@ -851,7 +870,12 @@ static inline void cpu_clone_regs(CPUARMState *env, target_ulong newsp)
 #define ARM_TBFLAG_CONDEXEC_MASK    (0xff << ARM_TBFLAG_CONDEXEC_SHIFT)
 #define ARM_TBFLAG_BSWAP_CODE_SHIFT 16
 #define ARM_TBFLAG_BSWAP_CODE_MASK  (1 << ARM_TBFLAG_BSWAP_CODE_SHIFT)
+#define ARM_TBFLAG_SECURE_SHIFT     17
+#define ARM_TBFLAG_SECURE_MASK      (1 << ARM_TBFLAG_SECURE_SHIFT)
+#define ARM_TBFLAG_SECURE_CP_SHIFT  18
+#define ARM_TBFLAG_SECURE_CP_MASK   (1 << ARM_TBFLAG_SECURE_SHIFT)
 
+/* Bits 31..19 are currently unused. */
 /* Bit usage when in AArch64 state: currently no bits defined */
 
 /* some convenience accessor macros */
@@ -871,6 +895,10 @@ static inline void cpu_clone_regs(CPUARMState *env, target_ulong newsp)
     (((F) & ARM_TBFLAG_CONDEXEC_MASK) >> ARM_TBFLAG_CONDEXEC_SHIFT)
 #define ARM_TBFLAG_BSWAP_CODE(F) \
     (((F) & ARM_TBFLAG_BSWAP_CODE_MASK) >> ARM_TBFLAG_BSWAP_CODE_SHIFT)
+#define ARM_TBFLAG_SECURE(F) \
+    (((F) & ARM_TBFLAG_SECURE_MASK) >> ARM_TBFLAG_SECURE_SHIFT)
+#define ARM_TBFLAG_SECURE_CP(F) \
+    (((F) & ARM_TBFLAG_SECURE_CP_MASK) >> ARM_TBFLAG_SECURE_CP_SHIFT)
 
 static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
@@ -894,6 +922,16 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
         if (privmode) {
             *flags |= ARM_TBFLAG_PRIV_MASK;
         }
+        /* NOTE: TrustZone: Indicate the active world for the TB */
+        if (arm_current_secure(env)) {
+            *flags |= ARM_TBFLAG_SECURE_MASK;
+        }
+        /* NOTE: TrustZone: Indicate the active CP15 bank for the TB
+        * (can be different from active world if CPSR.M==MON) */
+        if ((env->cp15.c1_scr & SCR_NS) == 0) {
+            *flags |= ARM_TBFLAG_SECURE_CP_MASK;
+        }
+
         if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30)) {
             *flags |= ARM_TBFLAG_VFPEN_MASK;
         }
