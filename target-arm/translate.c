@@ -83,6 +83,22 @@ static uint32_t gen_opc_condexec_bits[OPC_BUF_SIZE];
 #define IS_SECURE_CP(s) (s->secure_cp)
 #endif
 
+
+/* NOTE: TrustZone: Macros for computing the active MMU index.
+ *
+ * MMU_IDX_USER gets the current world's user-mode MMU index.
+ * MMU_IDX_PRIV gets the current world's kernel-mode MMU index.
+ *
+ * MMU_IDX_CURRENT gets the active MMU index based on current world and
+ * user vs privileged mode. This macro should be normally used instead
+ * of IS_USER(s) when determining the target MMU index for memory loads/stores.
+ *
+ * Unprivileged memory operations should use MMU_IDX_USER(s).
+ */
+#define MMU_IDX_USER(s) (IS_SECURE(s) ? MMU_S_USER_IDX : MMU_N_USER_IDX)
+#define MMU_IDX_PRIV(s) (IS_SECURE(s) ? MMU_S_KERNEL_IDX : MMU_N_KERNEL_IDX)
+#define MMU_IDX_CURRENT(s) (IS_USER(s) ? MMU_IDX_USER(s) : MMU_IDX_PRIV(s))
+
 /* These instructions trap after executing, so defer them until after the
    conditional executions state has been updated.  */
 #define DISAS_WFI 4
@@ -6747,10 +6763,10 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             if (offset)
                 tcg_gen_addi_i32(addr, addr, offset);
             tmp = load_reg(s, 14);
-            gen_st32(tmp, addr, 0);
+            gen_st32(tmp, addr, MMU_IDX_PRIV(s));
             tmp = load_cpu_field(spsr);
             tcg_gen_addi_i32(addr, addr, 4);
-            gen_st32(tmp, addr, 0);
+            gen_st32(tmp, addr, MMU_IDX_PRIV(s));
             if (insn & (1 << 21)) {
                 /* Base writeback.  */
                 switch (i) {
@@ -6789,9 +6805,9 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             if (offset)
                 tcg_gen_addi_i32(addr, addr, offset);
             /* Load PC into tmp and CPSR into tmp2.  */
-            tmp = gen_ld32(addr, 0);
+            tmp = gen_ld32(addr, MMU_IDX_PRIV(s));
             tcg_gen_addi_i32(addr, addr, 4);
-            tmp2 = gen_ld32(addr, 0);
+            tmp2 = gen_ld32(addr, MMU_IDX_PRIV(s));
             if (insn & (1 << 21)) {
                 /* Base writeback.  */
                 switch (i) {
@@ -8166,9 +8182,9 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     if ((insn & (1 << 24)) == 0)
                         tcg_gen_addi_i32(addr, addr, -8);
                     /* Load PC into tmp and CPSR into tmp2.  */
-                    tmp = gen_ld32(addr, 0);
+                    tmp = gen_ld32(addr, MMU_IDX_PRIV(s));
                     tcg_gen_addi_i32(addr, addr, 4);
-                    tmp2 = gen_ld32(addr, 0);
+                    tmp2 = gen_ld32(addr, MMU_IDX_PRIV(s));
                     if (insn & (1 << 21)) {
                         /* Base writeback.  */
                         if (insn & (1 << 24)) {
@@ -8192,11 +8208,10 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                         tcg_gen_addi_i32(addr, addr, -8);
                     }
                     tmp = load_reg(s, 14);
-                    gen_st32(tmp, addr, 0);
+                    gen_st32(tmp, addr, MMU_IDX_PRIV(s));
                     tcg_gen_addi_i32(addr, addr, 4);
                     tmp = tcg_temp_new_i32();
-                    gen_helper_cpsr_read(tmp, cpu_env);
-                    gen_st32(tmp, addr, 0);
+                    gen_st32(tmp, addr, MMU_IDX_PRIV(s));
                     if (insn & (1 << 21)) {
                         if ((insn & (1 << 24)) == 0) {
                             tcg_gen_addi_i32(addr, addr, -4);
