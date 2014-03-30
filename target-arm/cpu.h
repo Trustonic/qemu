@@ -83,6 +83,20 @@ typedef uint32_t ARMReadCPFunc(void *opaque, int cp_info,
 
 struct arm_boot_info;
 
+/* NOTE: TrustZone: We represent banked register with a secure and
+   a normal world version using the banked_uint32_t and the
+   banked_uint64_t structures.
+ */
+typedef struct {
+    uint32_t secure; /* Secure world bank */
+    uint32_t normal; /* Normal world bank */
+} banked_uint32_t;
+
+typedef struct {
+    uint64_t secure; /* Secure world bank */
+    uint64_t normal; /* Normal world bank */
+} banked_uint64_t;
+
 #define NB_MMU_MODES 2
 
 /* We currently assume float and double are IEEE single and double
@@ -145,27 +159,27 @@ typedef struct CPUARMState {
         uint32_t c0_cssel; /* Cache size selection.  */
         uint32_t c0_c1[8]; /* Feature registers.  */
         uint32_t c0_c2[8]; /* Instruction set registers.  */
-        uint32_t c1_sys; /* System control register.  */
+        banked_uint32_t c1_sys; /* System control register.  */
         uint32_t c1_coproc; /* Coprocessor access register.  */
         uint32_t c1_xscaleauxcr; /* XScale auxiliary control register.  */
         uint32_t c1_scr; /* Secure configuration register. */
         uint32_t c1_sedbg; /* Secure debug enable register. */
         uint32_t c1_nseac; /* Non-secure access control register. */
-        uint32_t c2_base0; /* MMU translation table base 0.  */
-        uint32_t c2_base1; /* MMU translation table base 1.  */
-        uint32_t c2_control; /* MMU translation table base control.  */
-        uint32_t c2_mask; /* MMU translation table base selection mask.  */
-        uint32_t c2_base_mask; /* MMU translation table base 0 mask. */
-        uint32_t c2_data; /* MPU data cachable bits.  */
-        uint32_t c2_insn; /* MPU instruction cachable bits.  */
-        uint32_t c3; /* MMU domain access control register
+        banked_uint32_t c2_base0; /* MMU translation table base 0.  */
+        banked_uint32_t c2_base1; /* MMU translation table base 1.  */
+        banked_uint32_t c2_control; /* MMU translation table base control.  */
+        banked_uint32_t c2_mask; /* MMU translation table base selection mask.  */
+        banked_uint32_t c2_base_mask; /* MMU translation table base 0 mask. */
+        banked_uint32_t c2_data; /* MPU data cachable bits.  */
+        banked_uint32_t c2_insn; /* MPU instruction cachable bits.  */
+        banked_uint32_t c3; /* MMU domain access control register
                         MPU write buffer control.  */
-        uint32_t c5_insn; /* Fault status registers.  */
-        uint32_t c5_data;
+        banked_uint32_t c5_insn; /* Fault status registers.  */
+        banked_uint32_t c5_data;
         uint32_t c6_region[8]; /* MPU base/size registers.  */
-        uint32_t c6_insn; /* Fault address registers.  */
-        uint32_t c6_data;
-        uint32_t c7_par;  /* Translation result. */
+        banked_uint32_t c6_insn; /* Fault address registers.  */
+        banked_uint32_t c6_data;
+        banked_uint32_t c7_par;  /* Translation result. */
         uint32_t c9_insn; /* Cache lockdown registers.  */
         uint32_t c9_data;
         uint32_t c9_pmcr; /* performance monitor control register */
@@ -175,12 +189,13 @@ typedef struct CPUARMState {
         uint32_t c9_pmuserenr; /* perf monitor user enable */
         uint32_t c9_pminten; /* perf monitor interrupt enables */
         uint32_t c12_vbar; /* secure/nonsecure vector base address register. */
+        banked_uint32_t c12_vbar; /* secure/nonsecure vector base address register. */
         uint32_t c12_mvbar; /* monitor vector base address register. */
-        uint32_t c13_fcse; /* FCSE PID.  */
-        uint32_t c13_context; /* Context ID.  */
-        uint32_t c13_tls1; /* User RW Thread register.  */
-        uint32_t c13_tls2; /* User RO Thread register.  */
-        uint32_t c13_tls3; /* Privileged Thread register.  */
+        banked_uint32_t c13_fcse; /* FCSE PID.  */
+        banked_uint32_t c13_context; /* Context ID.  */
+        banked_uint32_t c13_tls1; /* User RW Thread register.  */
+        banked_uint32_t c13_tls2; /* User RO Thread register.  */
+        banked_uint32_t c13_tls3; /* Privileged Thread register.  */
         uint32_t c15_cpar; /* XScale Coprocessor Access Register */
         uint32_t c15_ticonfig; /* TI925T configuration byte.  */
         uint32_t c15_i_max; /* Maximum D-cache dirty line index.  */
@@ -306,11 +321,6 @@ int cpu_arm_signal_handler(int host_signum, void *pinfo,
 int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address, int rw,
                               int mmu_idx);
 #define cpu_handle_mmu_fault cpu_arm_handle_mmu_fault
-
-static inline void cpu_set_tls(CPUARMState *env, target_ulong newtls)
-{
-  env->cp15.c13_tls2 = newtls;
-}
 
 #define CPSR_M (0x1fU)
 #define CPSR_T (1U << 5)
@@ -474,7 +484,7 @@ void armv7m_nvic_complete_irq(void *opaque, int irq);
  * NOTE: TrustZone: Secure world registers have bit[31]==0, normal
  * world register have bit[31]==1.
  */
-     
+
 #define ENCODE_CP_REG(secure, cp, is64, crn, crm, opc1, opc2)            \
     ((!(secure) << 31) | ((cp) << 16) | ((is64) << 15) | ((crn) << 11) | \
       ((crm) << 7) | ((opc1) << 3) | (opc2))
@@ -515,7 +525,7 @@ static inline uint64_t cpreg_to_kvm_id(uint32_t cpregid)
  * a register definition to override a previous definition for the
  * same (cp, is64, crn, crm, opc1, opc2) tuple: either the new or the
  * old must have the OVERRIDE bit set.
- * 
+ *
  * NOTE: TrustZone: The ARM_CP_SECURE, ARM_CP_NORMAL and ARM_CP_UNBANKED macros
  * defined the target bank visibility of a register definition.
  * Register which neither define ARM_CP_SECURE nor ARM_CP_NORMAL are assumed
@@ -532,9 +542,10 @@ static inline uint64_t cpreg_to_kvm_id(uint32_t cpregid)
 #define ARM_CP_64BIT 4
 #define ARM_CP_SUPPRESS_TB_END 8
 #define ARM_CP_OVERRIDE 16
+#define ARM_CP_UNBANKED 0
 #define ARM_CP_SECURE   32
 #define ARM_CP_NORMAL   64
-#define ARM_CP_UNBANKED (ARM_CP_SECURE | ARM_CP_NORMAL)
+#define ARM_CP_BANKED   (ARM_CP_SECURE | ARM_CP_NORMAL)
 #define ARM_CP_NOP (ARM_CP_SPECIAL | (1 << 8))
 #define ARM_CP_WFI (ARM_CP_SPECIAL | (2 << 8))
 #define ARM_LAST_SPECIAL ARM_CP_WFI
@@ -704,6 +715,24 @@ struct ARMCPRegInfo {
 
 #define REGINFO_SENTINEL { .type = ARM_CP_SENTINEL }
 
+/* NOTE: TrustZone: Macros to test for the bank a ARMCPRegInfo
+ * structure refers to. */
+#define CPREG_IS_SECURE(ri) \
+    ((ri)->type & ARM_CP_SECURE)
+
+/* NOTE: TrustZone: Macro which is an lvalues for banked CP registers
+ * in the CPUARMState.
+ */
+#define CPU_REG_BANKED(env, reg, secure_bank)                   \
+    (*((secure_bank) ? &((env)->reg.secure) : &((env)->reg.normal)))
+
+static inline void cpu_set_tls(CPUARMState *env, target_ulong newtls)
+{
+    int secure = arm_current_secure(env);
+    CPU_REG_BANKED(env, cp15.c13_tls2, secure) = newtls;
+}
+
+
 #ifndef CONFIG_ANDROID  // TODO(digit): Implement ARMCPU
 void define_arm_cp_regs_with_opaque(ARMCPU *cpu,
                                     const ARMCPRegInfo *regs, void *opaque);
@@ -832,12 +861,34 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 #define CPU_SAVE_VERSION 4
 
 /* MMU modes definitions */
-#define MMU_MODE0_SUFFIX _kernel
-#define MMU_MODE1_SUFFIX _user
-#define MMU_USER_IDX 1
+#define MMU_MODE0_SUFFIX _kernel       /* Secure privileged modes */
+#define MMU_MODE1_SUFFIX _user         /* Secure user mode        */
+#define MMU_MODE2_SUFFIX _n_kernel     /* Normal privileged mode  */
+#define MMU_MODE3_SUFFIX _n_user       /* Normal user mode        */
+
+/* Secure world MMU modes */
+#define MMU_S_BASE_IDX   0
+#define MMU_S_KERNEL_IDX (MMU_S_BASE_IDX + 0)
+#define MMU_S_USER_IDX   (MMU_S_BASE_IDX + 1)
+
+/* Normal world MMU modes */
+#define MMU_N_BASE_IDX   2
+#define MMU_N_KERNEL_IDX (MMU_N_BASE_IDX + 0)
+#define MMU_N_USER_IDX   (MMU_N_BASE_IDX + 1)
+
+/* NOTE: TrustZone: Use this function to get the current MMU state */
 static inline int cpu_mmu_index (CPUARMState *env)
 {
-    return (env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_USR ? 1 : 0;
+    /* Select between user/kernel MMU index */
+    int mmu_index = (env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_USR ? 1 : 0;
+
+    /* Select between normal/secure world MMU index */
+    if (!arm_current_secure(env)) {
+        /* Currently in secure world */
+        mmu_index += MMU_N_BASE_IDX;
+    }
+
+    return mmu_index;
 }
 
 static inline int is_cpu_user (CPUARMState *env)

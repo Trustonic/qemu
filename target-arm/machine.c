@@ -2,6 +2,22 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
 
+/* NOTE: TrustZone: Ad-hoc drop-in I/O solution for banked registers
+ * until better support is ready. */
+static inline void qemu_put_be32_banked(QEMUFile *f, banked_uint32_t value)
+{
+    qemu_put_be32(f, value.secure);
+    qemu_put_be32(f, value.normal);
+}
+
+static inline banked_uint32_t qemu_get_be32_banked(QEMUFile *f)
+{
+    banked_uint32_t ret;
+    ret.secure = qemu_get_be32(f);
+    ret.normal = qemu_get_be32(f);
+    return ret;
+}
+
 void cpu_save(QEMUFile *f, void *opaque)
 {
     int i;
@@ -24,28 +40,28 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, env->cp15.c0_cpuid);
     qemu_put_be32(f, env->cp15.c0_cachetype);
     qemu_put_be32(f, env->cp15.c0_cssel);
-    qemu_put_be32(f, env->cp15.c1_sys);
+    qemu_put_be32_banked(f, env->cp15.c1_sys);
     qemu_put_be32(f, env->cp15.c1_coproc);
     qemu_put_be32(f, env->cp15.c1_xscaleauxcr);
     qemu_put_be32(f, env->cp15.c1_scr);
     qemu_put_be32(f, env->cp15.c1_sedbg);
     qemu_put_be32(f, env->cp15.c1_nseac);
-    qemu_put_be32(f, env->cp15.c2_base0);
-    qemu_put_be32(f, env->cp15.c2_base1);
-    qemu_put_be32(f, env->cp15.c2_control);
-    qemu_put_be32(f, env->cp15.c2_mask);
-    qemu_put_be32(f, env->cp15.c2_base_mask);
-    qemu_put_be32(f, env->cp15.c2_data);
-    qemu_put_be32(f, env->cp15.c2_insn);
-    qemu_put_be32(f, env->cp15.c3);
-    qemu_put_be32(f, env->cp15.c5_insn);
-    qemu_put_be32(f, env->cp15.c5_data);
+    qemu_put_be32_banked(f, env->cp15.c2_base0);
+    qemu_put_be32_banked(f, env->cp15.c2_base1);
+    qemu_put_be32_banked(f, env->cp15.c2_control);
+    qemu_put_be32_banked(f, env->cp15.c2_mask);
+    qemu_put_be32_banked(f, env->cp15.c2_base_mask);
+    qemu_put_be32_banked(f, env->cp15.c2_data);
+    qemu_put_be32_banked(f, env->cp15.c2_insn);
+    qemu_put_be32_banked(f, env->cp15.c3);
+    qemu_put_be32_banked(f, env->cp15.c5_insn);
+    qemu_put_be32_banked(f, env->cp15.c5_data);
     for (i = 0; i < 8; i++) {
         qemu_put_be32(f, env->cp15.c6_region[i]);
     }
-    qemu_put_be32(f, env->cp15.c6_insn);
-    qemu_put_be32(f, env->cp15.c6_data);
-    qemu_put_be32(f, env->cp15.c7_par);
+    qemu_put_be32_banked(f, env->cp15.c6_insn);
+    qemu_put_be32_banked(f, env->cp15.c6_data);
+    qemu_put_be32_banked(f, env->cp15.c7_par);
     qemu_put_be32(f, env->cp15.c9_insn);
     qemu_put_be32(f, env->cp15.c9_data);
     qemu_put_be32(f, env->cp15.c9_pmcr);
@@ -54,11 +70,11 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, env->cp15.c9_pmxevtyper);
     qemu_put_be32(f, env->cp15.c9_pmuserenr);
     qemu_put_be32(f, env->cp15.c9_pminten);
-    qemu_put_be32(f, env->cp15.c13_fcse);
-    qemu_put_be32(f, env->cp15.c13_context);
-    qemu_put_be32(f, env->cp15.c13_tls1);
-    qemu_put_be32(f, env->cp15.c13_tls2);
-    qemu_put_be32(f, env->cp15.c13_tls3);
+    qemu_put_be32_banked(f, env->cp15.c13_fcse);
+    qemu_put_be32_banked(f, env->cp15.c13_context);
+    qemu_put_be32_banked(f, env->cp15.c13_tls1);
+    qemu_put_be32_banked(f, env->cp15.c13_tls2);
+    qemu_put_be32_banked(f, env->cp15.c13_tls3);
     qemu_put_be32(f, env->cp15.c15_cpar);
 
     qemu_put_be32(f, env->cp14_dbgdidr);
@@ -145,30 +161,31 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     env->cp15.c0_cpuid = qemu_get_be32(f);
     env->cp15.c0_cachetype = qemu_get_be32(f);
     env->cp15.c0_cssel = qemu_get_be32(f);
-    env->cp15.c1_sys = qemu_get_be32(f);
+    env->cp15.c1_sys = qemu_get_be32_banked(f);
     env->cp15.c1_coproc = qemu_get_be32(f);
     env->cp15.c1_xscaleauxcr = qemu_get_be32(f);
     env->cp15.c1_scr = qemu_get_be32(f);
     env->cp15.c1_sedbg = qemu_get_be32(f);
     env->cp15.c1_nseac = qemu_get_be32(f);
-    env->cp15.c2_base0 = qemu_get_be32(f);
-    env->cp15.c2_base1 = qemu_get_be32(f);
-    env->cp15.c2_control = qemu_get_be32(f);
-    env->cp15.c2_mask = qemu_get_be32(f);
-    env->cp15.c2_base_mask = qemu_get_be32(f);
-    env->cp15.c2_data = qemu_get_be32(f);
-    env->cp15.c2_insn = qemu_get_be32(f);
-    env->cp15.c3 = qemu_get_be32(f);
-    env->cp15.c5_insn = qemu_get_be32(f);
-    env->cp15.c5_data = qemu_get_be32(f);
+    env->cp15.c2_base0 = qemu_get_be32_banked(f);
+    env->cp15.c2_base1 = qemu_get_be32_banked(f);
+    env->cp15.c2_control = qemu_get_be32_banked(f);
+    env->cp15.c2_mask = qemu_get_be32_banked(f);
+    env->cp15.c2_base_mask = qemu_get_be32_banked(f);
+    env->cp15.c2_data = qemu_get_be32_banked(f);
+    env->cp15.c2_insn = qemu_get_be32_banked(f);
+    env->cp15.c3 = qemu_get_be32_banked(f);
+    env->cp15.c5_insn = qemu_get_be32_banked(f);
+    env->cp15.c5_data = qemu_get_be32_banked(f);
     for (i = 0; i < 8; i++) {
         env->cp15.c6_region[i] = qemu_get_be32(f);
     }
-    env->cp15.c6_insn = qemu_get_be32(f);
-    env->cp15.c6_data = qemu_get_be32(f);
-    env->cp15.c7_par = qemu_get_be32(f);
+    env->cp15.c6_insn = qemu_get_be32_banked(f);
+    env->cp15.c6_data = qemu_get_be32_banked(f);
+    env->cp15.c7_par = qemu_get_be32_banked(f);
     env->cp15.c9_insn = qemu_get_be32(f);
     env->cp15.c9_data = qemu_get_be32(f);
+
     if (version_id == CPU_SAVE_VERSION_LEGACY) {
         (void)qemu_get_be32(f);
         (void)qemu_get_be32(f);
@@ -181,11 +198,11 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         env->cp15.c9_pmuserenr = qemu_get_be32(f);
         env->cp15.c9_pminten = qemu_get_be32(f);
     }
-    env->cp15.c13_fcse = qemu_get_be32(f);
-    env->cp15.c13_context = qemu_get_be32(f);
-    env->cp15.c13_tls1 = qemu_get_be32(f);
-    env->cp15.c13_tls2 = qemu_get_be32(f);
-    env->cp15.c13_tls3 = qemu_get_be32(f);
+    env->cp15.c13_fcse = qemu_get_be32_banked(f);
+    env->cp15.c13_context = qemu_get_be32_banked(f);
+    env->cp15.c13_tls1 = qemu_get_be32_banked(f);
+    env->cp15.c13_tls2 = qemu_get_be32_banked(f);
+    env->cp15.c13_tls3 = qemu_get_be32_banked(f);
     env->cp15.c15_cpar = qemu_get_be32(f);
 
     env->cp14_dbgdidr = qemu_get_be32(f);
