@@ -1352,6 +1352,8 @@ int get_phys_addr(CPUARMState *env, uint32_t address, int access_type,
                                 uint32_t *phys_ptr, int *prot,
                                 target_ulong *page_size)
 {
+    int ret;
+
     /* Fast Context Switch Extension.  */
     if (address < 0x02000000)
         address += CPU_REG_BANKED(env, cp15.c13_fcse, is_secure);
@@ -1361,18 +1363,19 @@ int get_phys_addr(CPUARMState *env, uint32_t address, int access_type,
         *phys_ptr = address;
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         *page_size = TARGET_PAGE_SIZE;
-        return 0;
+        ret = 0;
     } else if (arm_feature(env, ARM_FEATURE_MPU)) {
         *page_size = TARGET_PAGE_SIZE;
-	return get_phys_addr_mpu(env, address, access_type, is_user, is_secure,
+        ret = get_phys_addr_mpu(env, address, access_type, is_user, is_secure,
                              phys_ptr, prot);
     } else if (CPU_REG_BANKED(env, cp15.c1_sys, 1) & (1 << 23)) {
-        return get_phys_addr_v6(env, address, access_type, is_user, is_secure,
+        ret = get_phys_addr_v6(env, address, access_type, is_user, is_secure,
                                 phys_ptr, prot, page_size);
     } else {
-        return get_phys_addr_v5(env, address, access_type, is_user, is_secure,
+        ret = get_phys_addr_v5(env, address, access_type, is_user, is_secure,
                                 phys_ptr, prot, page_size);
     }
+    return ret;
 }
 
 int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
