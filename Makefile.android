@@ -407,7 +407,7 @@ endif
 
 $(call end-emulator-program)
 
-include $(LOCAL_PATH)/Makefile.tests
+#include $(LOCAL_PATH)/Makefile.tests
 
 ##############################################################################
 ##############################################################################
