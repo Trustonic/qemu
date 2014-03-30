@@ -560,23 +560,6 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
     env->uncached_cpsr = (env->uncached_cpsr & ~mask) | (val & mask);
 }
 
-void HELPER(log_cp_write64)(CPUARMState *env, void *rip, uint64_t value)
-{
-}
-
-void HELPER(log_cp_read64)(CPUARMState *env, void *rip, uint64_t value)
-{
-}
-
-void HELPER(log_cp_write32)(CPUARMState *env, void *rip, uint32_t value)
-{
-}
-
-void HELPER(log_cp_read32)(CPUARMState *env, void *rip, uint32_t value)
-{
-}
-
-
 /* Sign/zero extend */
 uint32_t HELPER(sxtb16)(uint32_t x)
 {

@@ -470,10 +470,14 @@ void armv7m_nvic_complete_irq(void *opaque, int irq);
  *    or via MRRC/MCRR?)
  * We allow 4 bits for opc1 because MRRC/MCRR have a 4 bit field.
  * (In this case crn and opc2 should be zero.)
+ *
+ * NOTE: TrustZone: Secure world registers have bit[31]==0, normal
+ * world register have bit[31]==1.
  */
-#define ENCODE_CP_REG(cp, is64, crn, crm, opc1, opc2)   \
-    (((cp) << 16) | ((is64) << 15) | ((crn) << 11) |    \
-     ((crm) << 7) | ((opc1) << 3) | (opc2))
+     
+#define ENCODE_CP_REG(secure, cp, is64, crn, crm, opc1, opc2)            \
+    ((!(secure) << 31) | ((cp) << 16) | ((is64) << 15) | ((crn) << 11) | \
+      ((crm) << 7) | ((opc1) << 3) | (opc2))
 
 /* Convert a full 64 bit KVM register ID to the truncated 32 bit
  * version used as a key for the coprocessor register hashtable
@@ -511,6 +515,12 @@ static inline uint64_t cpreg_to_kvm_id(uint32_t cpregid)
  * a register definition to override a previous definition for the
  * same (cp, is64, crn, crm, opc1, opc2) tuple: either the new or the
  * old must have the OVERRIDE bit set.
+ * 
+ * NOTE: TrustZone: The ARM_CP_SECURE, ARM_CP_NORMAL and ARM_CP_UNBANKED macros
+ * defined the target bank visibility of a register definition.
+ * Register which neither define ARM_CP_SECURE nor ARM_CP_NORMAL are assumed
+ * to be unbanked (ARM_CP_UNBANKED) registers at the moment.
+ *
  * NO_MIGRATE indicates that this register should be ignored for migration;
  * (eg because any state is accessed via some other coprocessor register).
  * IO indicates that this register does I/O and therefore its accesses
@@ -522,8 +532,9 @@ static inline uint64_t cpreg_to_kvm_id(uint32_t cpregid)
 #define ARM_CP_64BIT 4
 #define ARM_CP_SUPPRESS_TB_END 8
 #define ARM_CP_OVERRIDE 16
-#define ARM_CP_NO_MIGRATE 32
-#define ARM_CP_IO 64
+#define ARM_CP_SECURE   32
+#define ARM_CP_NORMAL   64
+#define ARM_CP_UNBANKED (ARM_CP_SECURE | ARM_CP_NORMAL)
 #define ARM_CP_NOP (ARM_CP_SPECIAL | (1 << 8))
 #define ARM_CP_WFI (ARM_CP_SPECIAL | (2 << 8))
 #define ARM_LAST_SPECIAL ARM_CP_WFI

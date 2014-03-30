@@ -6361,20 +6361,56 @@ static int disas_cp14_write(CPUARMState * env, DisasContext *s, uint32_t insn)
     return 1;
 }
 
-static void log_cp_read64(DisasContext *s, const ARMCPRegInfo *ri, TCGv_i64 value)
+static void log_cp_helper(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value, const char *op)
 {
+    int secure = arm_current_secure(env);
+    int log_mask = secure ? CPU_LOG_CP_SECURE : CPU_LOG_CP_NORMAL;
+
+    if (qemu_loglevel_mask(log_mask)) {
+        /* NOTE: TrustZone: We log the active world as well as
+         * the virtual register bank used for the lookup.
+         *
+         * Valid world/bank combinations are:
+         * [S/S] SCR.NS==0              -> Secure World
+         * [S/N] CPSR.M==MON, SCR.NS==1 -> Secure Monitor + Normal Bank
+         * [N/N] SCR.NS==1              -> Normal World + Normal Bank
+         *
+         * The combination [N/S] indicates an emulator bug, which
+         * would allow normal world to access the secure register bank. :)
+         * (see the assertion below)
+         */
+        char world = secure ? 'S' : 'N';
+        char bank  = (ri->type & ARM_CP_SECURE) ? 'S' : 'N';
+
+        if (world == 'N' && bank == 'S') {
+            cpu_abort(env, "Normal world access to secure world CP bank\n");
+        }
+
+        qemu_log("cp%u %s%u [%c/%c %s] value=%016" PRIx64 "\n",
+                 ri->cp, op, (ri->type & ARM_CP_64BIT) ? 64 : 32,
+                 world, bank, ri->name, value);
+    }
 }
 
-static void log_cp_write64(DisasContext *s, const ARMCPRegInfo *ri, TCGv_i64 value)
+void HELPER(log_cp_write64)(CPUARMState *env, void *rip, uint64_t value)
 {
+    log_cp_helper(env, rip, value, "write");
 }
 
-static void log_cp_read32(DisasContext *s, const ARMCPRegInfo *ri, TCGv_i32 value)
+void HELPER(log_cp_read64)(CPUARMState *env, void *rip, uint64_t value)
 {
+    log_cp_helper(env, rip, value, "read");
 }
 
-static void log_cp_write32(DisasContext *s, const ARMCPRegInfo *ri, TCGv_i32 value)
+void HELPER(log_cp_write32)(CPUARMState *env, void *rip, uint32_t value)
 {
+    log_cp_helper(env, rip, value, "write");
+}
+
+void HELPER(log_cp_read32)(CPUARMState *env, void *rip, uint32_t value)
+{
+    log_cp_helper(env, rip, value, "read");
 }
 
 
