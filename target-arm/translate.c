@@ -10078,7 +10078,7 @@ void gen_intermediate_code_pc(CPUARMState *env, TranslationBlock *tb)
 }
 
 static const char *cpu_mode_names[16] = {
-  "usr", "fiq", "irq", "svc", "???", "???", "???", "abt",
+  "usr", "fiq", "irq", "svc", "???", "???", "mon", "abt",
   "???", "???", "???", "und", "???", "???", "???", "sys"
 };
 
@@ -10110,14 +10110,17 @@ void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
             cpu_fprintf(f, " ");
     }
     psr = cpsr_read(env);
-    cpu_fprintf(f, "PSR=%08x %c%c%c%c %c %s%d\n",
+    cpu_fprintf(f, "PSR=%08x %c%c%c%c %c %s%s%d\n",
                 psr,
                 psr & (1 << 31) ? 'N' : '-',
                 psr & (1 << 30) ? 'Z' : '-',
                 psr & (1 << 29) ? 'C' : '-',
                 psr & (1 << 28) ? 'V' : '-',
                 psr & CPSR_T ? 'T' : 'A',
+                env->cp15.c1_scr & 1 ? "N_" : "S_",
                 cpu_mode_names[psr & 0xf], (psr & 0x10) ? 32 : 26);
+    
+    cpu_fprintf(f, "SCR=%08x\n", env->cp15.c1_scr);
 
 #if 0
     for (i = 0; i < 16; i++) {
