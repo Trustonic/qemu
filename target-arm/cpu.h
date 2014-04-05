@@ -97,7 +97,7 @@ typedef struct {
     uint64_t normal; /* Normal world bank */
 } banked_uint64_t;
 
-#define NB_MMU_MODES 2
+#define NB_MMU_MODES 4
 
 /* We currently assume float and double are IEEE single and double
    precision respectively.

@@ -1358,17 +1358,19 @@ int get_phys_addr(CPUARMState *env, uint32_t address, int access_type,
     if (address < 0x02000000)
         address += CPU_REG_BANKED(env, cp15.c13_fcse, is_secure);
 
-    if ((CPU_REG_BANKED(env, cp15.c1_sys, 1) & 1) == 0) {
+    if ((CPU_REG_BANKED(env, cp15.c1_sys, is_secure) & 1) == 0) {
         /* MMU/MPU disabled.  */
         *phys_ptr = address;
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         *page_size = TARGET_PAGE_SIZE;
+	if(address >  0xc0000000)
+		printf("unexpected: is_Secure=%d\n", is_secure);
         ret = 0;
     } else if (arm_feature(env, ARM_FEATURE_MPU)) {
         *page_size = TARGET_PAGE_SIZE;
         ret = get_phys_addr_mpu(env, address, access_type, is_user, is_secure,
                              phys_ptr, prot);
-    } else if (CPU_REG_BANKED(env, cp15.c1_sys, 1) & (1 << 23)) {
+    } else if (CPU_REG_BANKED(env, cp15.c1_sys, is_secure) & (1 << 23)) {
         ret = get_phys_addr_v6(env, address, access_type, is_user, is_secure,
                                 phys_ptr, prot, page_size);
     } else {
@@ -1497,7 +1499,7 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
         switch (op2) {
         case 0:
                 if (!arm_feature(env, ARM_FEATURE_XSCALE))
-                CPU_REG_BANKED(env, cp15.c1_sys, 1) = val;
+                CPU_REG_BANKED(env, cp15.c1_sys, is_secure) = val;
             /* ??? Lots of these bits are not implemented.  */
             /* This may enable/disable the MMU, so do a TLB flush.  */
             tlb_flush(env, 1);
@@ -2018,7 +2020,7 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
             op2 = 0;
         switch (op2) {
         case 0: /* Control register.  */
-            return CPU_REG_BANKED(env, cp15.c1_sys, 1);
+            return CPU_REG_BANKED(env, cp15.c1_sys, is_secure);
         case 1: /* Auxiliary control register.  */
             if (arm_feature(env, ARM_FEATURE_XSCALE))
                 return env->cp15.c1_xscaleauxcr;

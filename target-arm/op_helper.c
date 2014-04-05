@@ -469,7 +469,7 @@ void HELPER(neon_vldst_all)(CPUARMState *env, uint32_t insn)
 #define STL(addr, val) stl(addr, val)
 #define STQ(addr, val) stq(addr, val)
 #else
-    int user = cpu_mmu_index(env);
+    int user = cpu_mmu_index(env) & 1;
 #define LDB(addr) helper_ldb_mmu(env, addr, user)
 #define LDW(addr) helper_le_lduw_mmu(env, addr, user, GETPC())
 #define LDL(addr) helper_le_ldul_mmu(env, addr, user, GETPC())
