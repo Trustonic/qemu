@@ -20,7 +20,8 @@ enum {
     INTERRUPT_NUMBER        = 0x04,
     INTERRUPT_DISABLE_ALL   = 0x08,
     INTERRUPT_DISABLE       = 0x0c,
-    INTERRUPT_ENABLE        = 0x10
+    INTERRUPT_ENABLE        = 0x10,
+    INTERRUPT_TRIGGER       = 0x14
 };
 
 struct goldfish_int_state {
@@ -142,7 +143,15 @@ static void goldfish_int_write(void *opaque, hwaddr offset, uint32_t value)
                     s->pending_count++;
             }
             break;
-
+        case INTERRUPT_TRIGGER:
+            if(s->level & mask) {
+                goldfish_int_set_irq(opaque, value, 0);
+                printf("Clear interrupt %d\n", value);
+            }  else {
+                goldfish_int_set_irq(opaque, value, 1);
+                printf("Trigger interrupt %d\n", value);
+            }
+            break;
     default:
         cpu_abort(cpu_single_env,
                   "goldfish_int_write: Bad offset %" HWADDR_PRIx "\n",
