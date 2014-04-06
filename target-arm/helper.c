@@ -1025,7 +1025,7 @@ void do_interrupt(CPUARMState *env)
     /* this is a lie, as the was no c1_sys on V4T/V5, but who cares
      * and we should just guard the thumb mode on V4 */
     if (arm_feature(env, ARM_FEATURE_V4T)) {
-        env->thumb = (CPU_REG_BANKED(env, cp15.c1_sys, 1) & (1 << 30)) != 0;
+        env->thumb = (CPU_REG_BANKED(env, cp15.c1_sys, secure_entry) & (1 << 30)) != 0;
     }
     env->regs[14] = env->regs[15] + offset;
     env->regs[15] = addr;
