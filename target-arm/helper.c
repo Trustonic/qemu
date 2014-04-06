@@ -968,9 +968,9 @@ void do_interrupt(CPUARMState *env)
             cpu_abort(env, "SMC handling under semihosting not implemented\n");
             return;
         }
-        if ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_MON) {
+        /*if ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_MON) {
             env->cp15.c1_scr &= ~1;
-        }
+        }*/
         offset = env->thumb ? 2 : 0;
         new_mode = ARM_CPU_MODE_MON;
         addr = 0x08;
@@ -981,8 +981,26 @@ void do_interrupt(CPUARMState *env)
         return; /* Never happens.  Keep compiler happy.  */
     }
     if (arm_feature(env, ARM_FEATURE_TRUSTZONE)) {
+        uint32_t uncached_old_mode = (env->uncached_cpsr & CPSR_M);
+
+        if (new_mode != ARM_CPU_MODE_MON && !secure_entry) {
+            if (env->cp15.c1_scr & SCR_FW) {
+                mask &= ~CPSR_F;
+            }
+
+            if (env->cp15.c1_scr & SCR_AW) {
+                mask &= ~CPSR_A;
+            }
+        }
+        
+        /* NOTE: TrustZone: Ensure that SCR.NS is cleared when we are already in
+         * secure monitor mode. (eg. IRQ/FIQ/Abort in mon mode.) */
+        if (uncached_old_mode == ARM_CPU_MODE_MON) {
+            env->cp15.c1_scr &= ~SCR_NS;
+        }
+
         if (new_mode == ARM_CPU_MODE_MON ||
-            (env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_MON) {
+            uncached_old_mode == ARM_CPU_MODE_MON) {
             addr += env->cp15.c12_mvbar;
         } else {
             if (CPU_REG_BANKED(env, cp15.c1_sys, secure_entry) & (1 << 13)) {
@@ -1390,6 +1408,8 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
 
     is_user = (mmu_idx == MMU_N_USER_IDX) || (mmu_idx == MMU_S_USER_IDX);
     is_secure = (mmu_idx == MMU_S_KERNEL_IDX) || (mmu_idx == MMU_S_USER_IDX);
+    
+    is_secure = !(env->cp15.c1_scr & 1) || ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_MON);
 
     ret = get_phys_addr(env, address, access_type, is_user, is_secure, &phys_addr, &prot,
                         &page_size);
@@ -1530,12 +1550,12 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
                 goto bad_reg;
             switch (op2) {
             case 0: /* Secure configuration register. */
-                if (env->cp15.c1_scr & 1)
+                if (((env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_MON) && (env->cp15.c1_scr & 1))
                     goto bad_reg;
                 env->cp15.c1_scr = val;
                 break;
             case 1: /* Secure debug enable register. */
-                if (env->cp15.c1_scr & 1)
+                if (((env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_MON) && (env->cp15.c1_scr & 1))
                     goto bad_reg;
                 env->cp15.c1_scr = val;
                 break;
@@ -2057,11 +2077,11 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
                 goto bad_reg;
             switch (op2) {
             case 0: /* Secure configuration register. */
-                if (env->cp15.c1_scr & 1)
+                if (((env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_MON) && (env->cp15.c1_scr & 1))
                     goto bad_reg;
                 return env->cp15.c1_scr;
             case 1: /* Secure debug enable register. */
-                if (env->cp15.c1_scr & 1)
+                if (((env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_MON) && (env->cp15.c1_scr & 1))
                     goto bad_reg;
                 return env->cp15.c1_sedbg;
             case 2: /* Nonsecure access control register. */
