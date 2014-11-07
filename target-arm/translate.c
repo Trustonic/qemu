@@ -2536,6 +2536,8 @@ static int cp15_tls_load_store(CPUARMState *env, DisasContext *s, uint32_t insn,
     int cpm = insn & 0xf;
     int op = ((insn >> 5) & 7) | ((insn >> 18) & 0x38);
 
+    int is_secure = arm_current_secure(env);
+
     if (!arm_feature(env, ARM_FEATURE_V6K))
         return 0;
 
@@ -2545,13 +2547,16 @@ static int cp15_tls_load_store(CPUARMState *env, DisasContext *s, uint32_t insn,
     if (insn & ARM_CP_RW_BIT) {
         switch (op) {
         case 2:
-            tmp = load_cpu_field(cp15.c13_tls1);
+            tmp = is_secure ? load_cpu_field(cp15.c13_tls1.secure)
+                            : load_cpu_field(cp15.c13_tls1.normal);
             break;
         case 3:
-            tmp = load_cpu_field(cp15.c13_tls2);
+            tmp = is_secure ? load_cpu_field(cp15.c13_tls2.secure)
+                            : load_cpu_field(cp15.c13_tls2.normal);
             break;
         case 4:
-            tmp = load_cpu_field(cp15.c13_tls3);
+            tmp = is_secure ? load_cpu_field(cp15.c13_tls3.secure)
+                            : load_cpu_field(cp15.c13_tls3.normal);
             break;
         default:
             return 0;
@@ -2562,13 +2567,22 @@ static int cp15_tls_load_store(CPUARMState *env, DisasContext *s, uint32_t insn,
         tmp = load_reg(s, rd);
         switch (op) {
         case 2:
-            store_cpu_field(tmp, cp15.c13_tls1);
+            if(is_secure)
+                store_cpu_field(tmp, cp15.c13_tls1.secure);
+            else
+                store_cpu_field(tmp, cp15.c13_tls1.normal);
             break;
         case 3:
-            store_cpu_field(tmp, cp15.c13_tls2);
+            if(is_secure)
+                store_cpu_field(tmp, cp15.c13_tls2.secure);
+            else
+                store_cpu_field(tmp, cp15.c13_tls2.normal);
             break;
         case 4:
-            store_cpu_field(tmp, cp15.c13_tls3);
+            if(is_secure)
+                store_cpu_field(tmp, cp15.c13_tls3.secure);
+            else
+                store_cpu_field(tmp, cp15.c13_tls3.normal);
             break;
         default:
             tcg_temp_free_i32(tmp);
