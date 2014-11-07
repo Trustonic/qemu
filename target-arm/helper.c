@@ -120,7 +120,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         memcpy(env->cp15.c0_c1, arm1176_cp15_c0_c1, 8 * sizeof(uint32_t));
         memcpy(env->cp15.c0_c2, arm1176_cp15_c0_c2, 8 * sizeof(uint32_t));
         env->cp15.c0_cachetype = 0x1dd20d2;
-        env->cp15.c1_sys = 0x00050078;
+        CPU_REG_BANKED(env, cp15.c1_sys, 1) = 0x00050078;
         break;
     case ARM_CPUID_ARM11MPCORE:
         set_feature(env, ARM_FEATURE_V4T);
@@ -1093,7 +1093,7 @@ static uint32_t get_level1_table_address(CPUARMState *env, uint32_t address,
         table = CPU_REG_BANKED(env, cp15.c2_base1, is_secure) & 0xffffc000;
     else
         table = CPU_REG_BANKED(env, cp15.c2_base0, is_secure) &
-            CPU_REG_BANKED(env, cp15.c2_base_mask, is_secure);
+                CPU_REG_BANKED(env, cp15.c2_base_mask, is_secure);
 
     table |= (address >> 18) & 0x3ffc;
     return table;
@@ -1320,38 +1320,38 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address, int access_type
 	return 2;
 
     if (access_type == 2) {
-	mask = CPU_REG_BANKED(env, cp15.c5_insn, is_secure);
+        mask = CPU_REG_BANKED(env, cp15.c5_insn, is_secure);
     } else {
-	mask = CPU_REG_BANKED(env, cp15.c5_data, is_secure);
+        mask = CPU_REG_BANKED(env, cp15.c5_data, is_secure);
     }
     mask = (mask >> (n * 4)) & 0xf;
     switch (mask) {
     case 0:
-	return 1;
+        return 1;
     case 1:
-	if (is_user)
-	  return 1;
-	*prot = PAGE_READ | PAGE_WRITE;
-	break;
+    	if (is_user)
+    	  return 1;
+    	*prot = PAGE_READ | PAGE_WRITE;
+    	break;
     case 2:
-	*prot = PAGE_READ;
-	if (!is_user)
-	    *prot |= PAGE_WRITE;
-	break;
+    	*prot = PAGE_READ;
+    	if (!is_user)
+    	    *prot |= PAGE_WRITE;
+    	break;
     case 3:
-	*prot = PAGE_READ | PAGE_WRITE;
-	break;
+    	*prot = PAGE_READ | PAGE_WRITE;
+    	break;
     case 5:
-	if (is_user)
-	    return 1;
-	*prot = PAGE_READ;
-	break;
+    	if (is_user)
+    	    return 1;
+    	*prot = PAGE_READ;
+    	break;
     case 6:
-	*prot = PAGE_READ;
+    	*prot = PAGE_READ;
 	break;
     default:
-	/* Bad permission.  */
-	return 1;
+    	/* Bad permission.  */
+    	return 1;
     }
     *prot |= PAGE_EXEC;
     return 0;
@@ -1381,8 +1381,10 @@ int get_phys_addr(CPUARMState *env, uint32_t address, int access_type,
         *phys_ptr = address;
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         *page_size = TARGET_PAGE_SIZE;
-	if(address >  0xc0000000)
-		printf("unexpected: is_Secure=%d\n", is_secure);
+
+        if(address >  0xc0000000)
+            printf("unexpected: is_Secure=%d\n", is_secure);
+
         ret = 0;
     } else if (arm_feature(env, ARM_FEATURE_MPU)) {
         *page_size = TARGET_PAGE_SIZE;
@@ -1407,7 +1409,7 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
     int ret, is_user, is_secure;
 
     is_user = (mmu_idx == MMU_N_USER_IDX) || (mmu_idx == MMU_S_USER_IDX);
-    is_secure = (mmu_idx == MMU_S_KERNEL_IDX) || (mmu_idx == MMU_S_USER_IDX);
+    // is_secure = (mmu_idx == MMU_S_KERNEL_IDX) || (mmu_idx == MMU_S_USER_IDX);
     
     is_secure = !(env->cp15.c1_scr & 1) || ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_MON);
 
@@ -1585,24 +1587,22 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
                 goto bad_reg;
             }
         } else {
-	    switch (op2) {
-	    case 0:
-        CPU_REG_BANKED(env, cp15.c2_base0, is_secure) = val;
-		break;
-	    case 1:
-        CPU_REG_BANKED(env, cp15.c2_base1, is_secure) = val;
-
-		break;
-	    case 2:
-        val &= 7;
-        CPU_REG_BANKED(env, cp15.c2_control, is_secure) = val;
-        CPU_REG_BANKED(env, cp15.c2_mask, is_secure) = ~(((uint32_t)0xffffffffu) >> val);
-        CPU_REG_BANKED(env, cp15.c2_base_mask, is_secure) = ~((uint32_t)0x3fffu >> val);
-
-		break;
-	    default:
-		goto bad_reg;
-	    }
+            switch (op2) {
+            case 0:
+              CPU_REG_BANKED(env, cp15.c2_base0, is_secure) = val;
+              break;
+            case 1:
+              CPU_REG_BANKED(env, cp15.c2_base1, is_secure) = val;
+              break;
+            case 2:
+                val &= 7;
+                CPU_REG_BANKED(env, cp15.c2_control, is_secure) = val;
+                CPU_REG_BANKED(env, cp15.c2_mask, is_secure) = ~(((uint32_t)0xffffffffu) >> val);
+                CPU_REG_BANKED(env, cp15.c2_base_mask, is_secure) = ~((uint32_t)0x3fffu >> val);
+              break;
+            default:
+              goto bad_reg;
+            }
         }
         break;
     case 3: /* MMU Domain access control / MPU write buffer control.  */
@@ -2107,19 +2107,17 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
                 goto bad_reg;
             }
         } else {
-	    switch (op2) {
-	    case 0:
-        return CPU_REG_BANKED(env, cp15.c2_base0, is_secure);
-
-	    case 1:
-        return CPU_REG_BANKED(env, cp15.c2_base1, is_secure);
-	    case 2:
-        return CPU_REG_BANKED(env, cp15.c2_control, is_secure);
-
-	    default:
-		goto bad_reg;
-	    }
-	}
+    	    switch (op2) {
+    	    case 0:
+                return CPU_REG_BANKED(env, cp15.c2_base0, is_secure);
+    	    case 1:
+                return CPU_REG_BANKED(env, cp15.c2_base1, is_secure);
+    	    case 2:
+                return CPU_REG_BANKED(env, cp15.c2_control, is_secure);
+    	    default:
+                goto bad_reg;
+    	    }
+        }
     case 3: /* MMU Domain access control / MPU write buffer control.  */
         return CPU_REG_BANKED(env, cp15.c3, is_secure);
     case 4: /* Reserved.  */
@@ -2155,31 +2153,31 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
         } else {
             if (arm_feature(env, ARM_FEATURE_OMAPCP))
                 op2 = 0;
-	    switch (op2) {
-	    case 0:
-		return CPU_REG_BANKED(env, cp15.c6_data, is_secure);
-	    case 1:
-		if (arm_feature(env, ARM_FEATURE_V6)) {
-		    /* Watchpoint Fault Adrress.  */
-		    return 0; /* Not implemented.  */
+            switch (op2) {
+            case 0:
+                return CPU_REG_BANKED(env, cp15.c6_data, is_secure);
+            case 1:
+                if (arm_feature(env, ARM_FEATURE_V6)) {
+                    /* Watchpoint Fault Adrress.  */
+                    return 0; /* Not implemented.  */
                 }
-		    /* Instruction Fault Adrress.  */
-		    /* Arm9 doesn't have an IFAR, but implementing it anyway
-		       shouldn't do any harm.  */
-		    return CPU_REG_BANKED(env, cp15.c6_insn, is_secure);
-	    case 2:
-		if (arm_feature(env, ARM_FEATURE_V6)) {
-		    /* Instruction Fault Adrress.  */
-		    return CPU_REG_BANKED(env, cp15.c6_insn, is_secure);
-		}
+                /* Instruction Fault Adrress.  */
+                /* Arm9 doesn't have an IFAR, but implementing it anyway
+                shouldn't do any harm.  */
+                return CPU_REG_BANKED(env, cp15.c6_insn, is_secure);
+            case 2:
+                if (arm_feature(env, ARM_FEATURE_V6)) {
+                    /* Instruction Fault Adrress.  */
+                    return CPU_REG_BANKED(env, cp15.c6_insn, is_secure);
+                }
                 goto bad_reg;
-	    default:
-		goto bad_reg;
-	    }
+            default:
+                goto bad_reg;
+            }
         }
     case 7: /* Cache control.  */
         if (crm == 4 && op1 == 0 && op2 == 0) {
-            return CPU_REG_BANKED(env, cp15.c7_par, is_secure);;
+            return CPU_REG_BANKED(env, cp15.c7_par, is_secure);
         }
         if (((insn >> 12) & 0xf) == 0xf) /* clear ZF only if destination is r15 */
         env->ZF = 0;

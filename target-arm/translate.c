@@ -6442,15 +6442,15 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
     switch (cpnum) {
       case 0:
       case 1:
-	if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
-	    return disas_iwmmxt_insn(env, s, insn);
-	} else if (arm_feature(env, ARM_FEATURE_XSCALE)) {
-	    return disas_dsp_insn(env, s, insn);
-	}
-	goto board;
+        if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
+            return disas_iwmmxt_insn(env, s, insn);
+        } else if (arm_feature(env, ARM_FEATURE_XSCALE)) {
+            return disas_dsp_insn(env, s, insn);
+        }
+        goto board;
     case 10:
     case 11:
-	return disas_vfp_insn (env, s, insn);
+        return disas_vfp_insn (env, s, insn);
     case 14:
         /* Coprocessors 7-15 are architecturally reserved by ARM.
            Unfortunately Intel decided to ignore this.  */
@@ -6461,11 +6461,11 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
         else
             return disas_cp14_write(env, s, insn);
     case 15:
-	return disas_cp15_insn (env, s, insn);
+        return disas_cp15_insn (env, s, insn);
     default:
-    board:
-	/* Unknown coprocessor.  See if the board has hooked it.  */
-	return disas_cp_insn (env, s, insn);
+        board:
+        /* Unknown coprocessor.  See if the board has hooked it.  */
+        return disas_cp_insn (env, s, insn);
     }
 }
 
@@ -6770,11 +6770,11 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             if (insn & (1 << 21)) {
                 /* Base writeback.  */
                 switch (i) {
-                case 0: offset = -8; break;
-                case 1: offset = 4; break;
-                case 2: offset = -4; break;
-                case 3: offset = 0; break;
-                default: abort();
+                    case 0: offset = -8; break;
+                    case 1: offset = 4; break;
+                    case 2: offset = -4; break;
+                    case 3: offset = 0; break;
+                    default: abort();
                 }
                 if (offset)
                     tcg_gen_addi_i32(addr, addr, offset);
@@ -8211,6 +8211,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     gen_st32(tmp, addr, MMU_IDX_PRIV(s));
                     tcg_gen_addi_i32(addr, addr, 4);
                     tmp = tcg_temp_new_i32();
+                    gen_helper_cpsr_read(tmp, cpu_env);
                     gen_st32(tmp, addr, MMU_IDX_PRIV(s));
                     if (insn & (1 << 21)) {
                         if ((insn & (1 << 24)) == 0) {
@@ -10119,7 +10120,7 @@ void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
                 psr & CPSR_T ? 'T' : 'A',
                 env->cp15.c1_scr & 1 ? "N_" : "S_",
                 cpu_mode_names[psr & 0xf], (psr & 0x10) ? 32 : 26);
-    
+
     cpu_fprintf(f, "SCR=%08x\n", env->cp15.c1_scr);
 
 #if 0
