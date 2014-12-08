@@ -200,6 +200,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         set_feature(env, ARM_FEATURE_VFP_FP16);
         set_feature(env, ARM_FEATURE_NEON);
         set_feature(env, ARM_FEATURE_THUMB2EE);
+        set_feature(env, ARM_FEATURE_DIV);
         /* Note that A9 supports the MP extensions even for
          * A9UP and single-core A9MP (which are both different
          * and valid configurations; we don't model A9UP).
@@ -992,7 +993,7 @@ void do_interrupt(CPUARMState *env)
                 mask &= ~CPSR_A;
             }
         }
-        
+
         /* NOTE: TrustZone: Ensure that SCR.NS is cleared when we are already in
          * secure monitor mode. (eg. IRQ/FIQ/Abort in mon mode.) */
         if (uncached_old_mode == ARM_CPU_MODE_MON) {
@@ -1410,7 +1411,7 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
 
     is_user = (mmu_idx == MMU_N_USER_IDX) || (mmu_idx == MMU_S_USER_IDX);
     // is_secure = (mmu_idx == MMU_S_KERNEL_IDX) || (mmu_idx == MMU_S_USER_IDX);
-    
+
     is_secure = !(env->cp15.c1_scr & 1) || ((env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_MON);
 
     ret = get_phys_addr(env, address, access_type, is_user, is_secure, &phys_addr, &prot,
